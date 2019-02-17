@@ -1,0 +1,27 @@
+
+```{r, warning = FALSE, message = FALSE}
+# install.packages('fda') # run this once if you have not installed the R package fda before
+library(fda)
+library(Rcpp)
+
+x <- seq(0, 1, length.out = 25) 
+diag(x)
+knots <- seq(0, 1, length.out = 20)
+sourceCpp("main.cpp")
+
+#start_time <- proc.time()
+B <- calcB(x, knots, 8);
+#end_time <- proc.time()
+#end_time - start_time
+
+#start_time2 <- proc.time()
+basis <- create.bspline.basis(breaks = knots, norder = 8) 
+B1 <- eval.basis(x, basis)
+#end_time2 <- proc.time()
+#end_time2 - start_time2
+
+B
+B1
+
+Omega_B <- fda::bsplinepen(basis)
+
