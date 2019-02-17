@@ -20,7 +20,6 @@ ui <- fluidPage(
       sliderInput("lambda", "Choose the log lambda:", min = -10, max = 10, step=0.01, value=3),
       radioButtons("options", "Operation Options: ", 
                    c("Add points" = "add",
-                     "Remove points" = "remove",
                      "Toggle points" = "toggle",
                      "Do nothing" = "nothing"),
                    selected = "nothing"),
@@ -53,51 +52,46 @@ server <- function(input, output) {
   dataframe$DT <- temp
   vals <- reactiveValues()
   vals$keeprows <- rep(TRUE, nrow(temp))
-  # add row when click add button
-  observeEvent({
-    input$options == "add"
-    input$plot_click
-  },{
-    add_row <- data.frame(x = input$plot_click$x, y = input$plot_click$y)
-    dataframe$DF <- rbind(dataframe$DF, add_row)
-    vals$keeprows <- rep(TRUE, nrow(dataframe$DT))
-  })
-  # remove row when click remove button
-  observeEvent(input$rem_point, {
-    rem_row <- values$dataframe$DF[-nrow(values$dataframe$DF), ]
-    values$dataframe$DF <- rem_row
+  
+  # add points
+  observeEvent(input$plot_click,{
+    if(input$options == "add") {
+      add_row <- data.frame(x = input$plot_click$x, y = input$plot_click$y)
+      dataframe$DT <- rbind(dataframe$DT, add_row)
+      vals$keeprows <- rep(TRUE, nrow(dataframe$DT))
+    }
+    if(input$options == "toggle") {
+      res <- nearPoints(dataframe$DT, input$plot_click, allRows = TRUE)
+      vals$keeprows <- xor(vals$keeprows, res$selected_)
+    }
+    
   })
   
-  # Toggle points that are clicked when add button is not clicked
-  observeEvent({
-    !input$addpoint
-    input$plot_click
-  }, {
-    res <- nearPoints(dataframe$DF, input$plot_click, allRows = TRUE)
-    vals$keeprows <- xor(vals$keeprows, res$selected_)
-  })
-  
+
   # Toggle points that are brushed when button is clicked
   observeEvent(input$exclude_toggle, {
-    res <- brushedPoints(dataframe$DF, input$plot_brush, allRows = TRUE)
-    vals$keeprows <- xor(vals$keeprows, res$selected)
+      if (input$options == "toggle") {
+        res <- brushedPoints(dataframe$DT, input$plot_brush, allRows = TRUE)
+        vals$keeprows <- xor(vals$keeprows, res$selected)
+      }
   })
   
   # Reset all points
   observeEvent(input$exclude_reset, {
-    vals$keeprows <- rep(TRUE, nrow(dataframe$DF))
+    dataframe$DT <- temp
+    vals$keeprows <- rep(TRUE, nrow(temp))
   })
   
   output$plot <- renderPlot({
-    keep <- dataframe$DF[vals$keeprows, ,drop=FALSE]
-    exclude <- dataframe$DF[!vals$keeprows, ,drop=FALSE]
+    keep <- dataframe$DT[vals$keeprows, ,drop=FALSE]
+    exclude <- dataframe$DT[!vals$keeprows, ,drop=FALSE]
     select_x <- brushedPoints(keep, input$plot_brush)$x 
     select_y <- brushedPoints(keep, input$plot_brush)$y
     if (length(select_x) > 1) {
       y_hat <- B() %*% sol()
       predict <- data.frame(select_x, y_hat)
       actual <- data.frame(select_x, select_y)
-      ggplot(keep, aes(x,y), color="black") + geom_point() + 
+      ggplot() + geom_point(data = keep, aes(x, y), color="black") + 
         geom_point(data = exclude, shape = 21, fill = NA, color = "black", alpha = 0.25) +
         geom_line(data=predict, aes(select_x, y_hat), color="red", size = 1)
     } else {
@@ -108,13 +102,14 @@ server <- function(input, output) {
   
   # Display brush selected x, y values
   output$brush_info <- renderPrint({
-    keep <- dataframe$DF[vals$keeprows, ,drop=FALSE]
+    keep <- dataframe$DT[vals$keeprows, ,drop=FALSE]
     brushedPoints(keep, input$plot_brush)
   })
   
+  # Display spline matrix
   output$spline <- renderPrint({
-    keep <- dataframe$DF[vals$keeprows, ,drop=FALSE]
-    exclude <- dataframe$DF[!vals$keeprows, ,drop=FALSE]
+    keep <- dataframe$DT[vals$keeprows, ,drop=FALSE]
+    exclude <- dataframe$DT[!vals$keeprows, ,drop=FALSE]
     select_x <- brushedPoints(keep, input$plot_brush)$x
     select_y <- brushedPoints(keep, input$plot_brush)$y
     if (length(select_x) <= 1 ) {
@@ -129,8 +124,12 @@ server <- function(input, output) {
   })
   
   
- 
+  
+  
+  
 
+  
+  
 }
 
 shinyApp(ui, server)
