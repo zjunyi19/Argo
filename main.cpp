@@ -7,9 +7,10 @@
 //
 
 #include <RcppArmadillo.h>
-
+#include <algorithm>
 using namespace arma;
 using namespace Rcpp;
+using namespace std;
 
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::export]]
@@ -159,7 +160,6 @@ NumericMatrix calc_Omega(NumericVector knots, int M) {
       }
       B2(k,i) = (M-1) * (first_para * dp1[i] - second_para * dp1[i+1]);
     }
-
   }
 
   vec w_tilde(3*(K+2*M-3));
